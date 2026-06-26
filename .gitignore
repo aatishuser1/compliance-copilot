@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+.env
+*.egg-info/
+dist/
+build/
+
+# Storage runtime data (keep directory structure)
+backend/app/storage/uploads/*
+!backend/app/storage/uploads/.gitkeep
+backend/app/storage/indexes/*
+!backend/app/storage/indexes/.gitkeep
+backend/app/storage/*.db
+backend/app/storage/metadata/*
+!backend/app/storage/metadata/.gitkeep
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Logs & OS
+*.log
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
