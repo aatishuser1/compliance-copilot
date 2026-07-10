@@ -33,12 +33,69 @@ export type ChatResponse = {
   found_in_document: boolean
 }
 
+export type Priority = 'critical' | 'high' | 'medium' | 'low'
+export type Severity = 'critical' | 'high' | 'medium' | 'low'
+export type Effort = 'low' | 'medium' | 'high'
+export type RiskLevel = 'critical' | 'high' | 'medium' | 'low'
+
+export type SourceReference = {
+  page: number
+  chunk?: number | null
+  section?: string | null
+  excerpt?: string | null
+}
+
+export type ComplianceObligation = {
+  id: string
+  title: string
+  description: string
+  priority: Priority
+  category?: string | null
+  deadline?: string | null
+  sources: SourceReference[]
+}
+
+export type ComplianceRisk = {
+  id: string
+  title: string
+  description: string
+  severity: Severity
+  likelihood?: string | null
+  related_obligation_ids: string[]
+  sources: SourceReference[]
+}
+
+export type CompliancePenalty = {
+  id: string
+  description: string
+  amount_or_range?: string | null
+  penalty_type?: string | null
+  trigger?: string | null
+  related_obligation_ids: string[]
+  sources: SourceReference[]
+}
+
+export type RecommendedAction = {
+  id: string
+  title: string
+  description: string
+  priority: Priority
+  effort: Effort
+  related_risk_ids: string[]
+  related_obligation_ids: string[]
+}
+
 export type ComplianceSummary = {
   overview: string
-  key_obligations: string[]
-  risks: string[]
+  document_type?: string | null
+  regulatory_framework?: string | null
+  risk_level: RiskLevel
+  obligations: ComplianceObligation[]
+  risks: ComplianceRisk[]
+  penalties: CompliancePenalty[]
   missing_information: string[]
-  recommendations: string[]
+  recommended_actions: RecommendedAction[]
+  analysis_notes?: string | null
 }
 
 export type SummaryResponse = {

@@ -1,19 +1,52 @@
 # Compliance Copilot
 
-A full-stack compliance assistant for uploading PDF documents, generating structured compliance summaries, and asking document-grounded questions with RAG.
+A full-stack compliance intelligence platform for uploading PDF documents, extracting structured compliance outcomes, and asking document-grounded questions with RAG.
+
+## What It Does
+
+Beyond document Q&A, Compliance Copilot translates retrieved content into **actionable compliance intelligence**:
+
+- **Obligations** — mandatory requirements with priority, category, deadlines, and page citations
+- **Risks** — non-compliance exposure with severity ratings and links to obligations
+- **Penalties** — fines, sanctions, and enforcement actions where stated in the document
+- **Recommended Actions** — concrete steps for compliance teams, linked to risks and obligations
+- **Missing Information** — gaps and ambiguities that need clarification
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-    UI[React Frontend] --> API[FastAPI Backend]
-    API --> PDF[PDF Service]
-    API --> RAG[RAG Pipeline]
-    PDF --> Storage[(Local Storage)]
-    RAG --> Embed[OpenAI Embeddings]
-    RAG --> FAISS[(FAISS Index)]
-    RAG --> LLM[OpenAI Chat Model]
+flowchart TB
+    User --> Frontend[React Frontend]
+    Frontend --> API[FastAPI Backend]
+
+    subgraph Ingestion
+        API --> PDF[PDF Processing]
+        PDF --> Chunk[Section-Aware Chunking]
+        Chunk --> Embed[OpenAI Embeddings]
+        Embed --> FAISS[(FAISS Index)]
+    end
+
+    subgraph ComplianceIntelligence["Compliance Intelligence Pipeline"]
+        FAISS --> MultiQuery[Multi-Query Retrieval]
+        MultiQuery --> Extract[Extract Obligations / Risks / Penalties]
+        Extract --> Synthesize[Synthesize Actions & Overview]
+        Synthesize --> Report[Structured Compliance Report]
+    end
+
+    subgraph Chat
+        API --> Retrieve[Retrieve Top Chunks]
+        Retrieve --> FAISS
+        Retrieve --> LLM[OpenAI GPT]
+        LLM --> Answer[Answer + Citations]
+    end
 ```
+
+### Compliance Intelligence Pipeline
+
+1. **Multi-query retrieval** — runs targeted searches for obligations, penalties, risks, deadlines, controls, and scope
+2. **Extraction pass** — LLM extracts structured obligations, risks, and penalties with source references
+3. **Synthesis pass** — generates executive overview, risk level, gaps, and recommended actions linked to extracted facts
+4. **Citation resolution** — maps REF labels back to page numbers and section headings
 
 ## Folder Structure
 
@@ -22,9 +55,9 @@ compliance-copilot/
 ├── backend/
 │   ├── app/
 │   │   ├── api/              # HTTP routes
-│   │   ├── services/         # Business logic
+│   │   ├── services/         # Business logic + compliance intelligence
 │   │   ├── rag/              # Chunking + vector store
-│   │   ├── prompts/          # Prompt templates
+│   │   ├── prompts/          # LLM prompt templates
 │   │   ├── storage/          # Uploads, indexes, metadata
 │   │   ├── config.py
 │   │   ├── schemas.py
@@ -56,7 +89,27 @@ compliance-copilot/
 | `POST` | `/api/upload` | Upload and index a PDF |
 | `GET` | `/api/upload/documents` | List uploaded documents |
 | `POST` | `/api/chat` | Ask a document question (RAG) |
-| `POST` | `/api/summary` | Generate structured compliance summary |
+| `POST` | `/api/summary` | Generate structured compliance intelligence |
+
+### Summary Response Shape
+
+```json
+{
+  "document_id": "...",
+  "summary": {
+    "overview": "Executive summary",
+    "document_type": "Privacy Policy",
+    "regulatory_framework": "GDPR",
+    "risk_level": "high",
+    "obligations": [{ "id": "OBL-1", "title": "...", "priority": "high", "sources": [...] }],
+    "risks": [{ "id": "RSK-1", "severity": "high", "related_obligation_ids": ["OBL-1"], ... }],
+    "penalties": [{ "id": "PEN-1", "amount_or_range": "$10,000 per violation", ... }],
+    "recommended_actions": [{ "id": "ACT-1", "priority": "high", "effort": "medium", ... }],
+    "missing_information": ["..."],
+    "analysis_notes": "..."
+  }
+}
+```
 
 Interactive docs: `http://localhost:8000/docs`
 
@@ -105,14 +158,16 @@ Persistent storage note: Railway ephemeral disks will reset uploaded files unles
 ## Tradeoffs
 
 - **Local FAISS + filesystem storage** keeps the project simple but is not multi-instance friendly without shared storage.
+- **Multi-pass LLM analysis** produces richer compliance outcomes but uses more tokens than a single-shot summary.
+- **RAG-grounded extraction** improves citation accuracy but depends on retrieval quality for long or poorly structured documents.
 - **Score-based retrieval filtering** reduces hallucinations but may miss valid answers if thresholds are too strict.
-- **Structured summary via JSON prompting** is lightweight but less strict than native structured output APIs.
 
 ## Future Improvements
 
 - Object storage (S3) for uploads and indexes
-- Persistent metadata database
+- Persistent metadata database with analysis history
 - Auth and per-user document isolation
 - Streaming chat responses
-- Evaluation dataset for retrieval quality
+- Evaluation dataset for retrieval and extraction quality
 - Background jobs for large PDF processing
+- Cross-document obligation mapping and framework taxonomies
