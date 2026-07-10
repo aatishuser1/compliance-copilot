@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     heading_match_threshold_margin: float = 0.25
     max_upload_mb: int = 25
     summary_max_chars: int = 12000
+    compliance_retrieval_queries: int = 6
+    compliance_chunks_per_query: int = 8
+    compliance_max_context_chars: int = 24000
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     port: int = 8000
 

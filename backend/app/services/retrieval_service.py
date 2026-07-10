@@ -10,6 +10,15 @@ logger = get_logger(__name__)
 
 MAX_CHUNKS_PER_PAGE = 2
 
+COMPLIANCE_RETRIEVAL_QUERIES = [
+    "mandatory obligations requirements shall must comply duties responsibilities",
+    "penalties fines sanctions enforcement monetary damages violations",
+    "risks non-compliance consequences breach exposure liability",
+    "reporting deadlines timelines notification filing requirements",
+    "controls policies procedures safeguards security measures",
+    "scope applicability jurisdiction definitions regulatory framework",
+]
+
 
 def index_document(document_id: str, chunks: list[Document]) -> None:
     logger.info("Generating embeddings for document %s", document_id)
@@ -46,6 +55,55 @@ def _select_diverse_chunks(
             break
 
     return selected
+
+
+def _chunk_key(document: Document) -> tuple[int, int]:
+    return (
+        int(document.metadata.get("page", 0)),
+        int(document.metadata.get("chunk", 0)),
+    )
+
+
+def retrieve_for_compliance(
+    document_id: str,
+    *,
+    max_chunks: int | None = None,
+) -> list[Document]:
+    """Gather diverse, compliance-relevant chunks via targeted multi-query retrieval."""
+    queries = COMPLIANCE_RETRIEVAL_QUERIES[: settings.compliance_retrieval_queries]
+    per_query = settings.compliance_chunks_per_query
+    seen: set[tuple[int, int]] = set()
+    collected: list[tuple[Document, float]] = []
+
+    for query in queries:
+        results = retrieve_with_scores(document_id, query)
+        for document, score in results[:per_query]:
+            key = _chunk_key(document)
+            if key in seen:
+                continue
+            seen.add(key)
+            collected.append((document, score))
+
+    if not collected:
+        logger.warning("No compliance context retrieved for document %s", document_id)
+        return []
+
+    ranked = sorted(
+        collected,
+        key=lambda item: (
+            -heading_match_boost("compliance obligations penalties risks", item[0]),
+            item[1],
+        ),
+    )
+    limit = max_chunks or len(ranked)
+    documents = [document for document, _ in ranked[:limit]]
+    logger.info(
+        "Gathered %d compliance chunks for document %s across %d queries",
+        len(documents),
+        document_id,
+        len(queries),
+    )
+    return documents
 
 
 def retrieve_with_scores(

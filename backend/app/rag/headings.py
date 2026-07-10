@@ -18,6 +18,28 @@ KNOWN_HEADINGS = [
     "Architecture & System Design",
     "Code Quality & Engineering Practices",
     "Deployment & DevOps",
+    # Compliance document sections
+    "Obligations",
+    "Requirements",
+    "Penalties",
+    "Fines and Penalties",
+    "Enforcement",
+    "Sanctions",
+    "Non-Compliance",
+    "Reporting Requirements",
+    "Deadlines",
+    "Definitions",
+    "Scope",
+    "Applicability",
+    "Risk Assessment",
+    "Controls",
+    "Policies and Procedures",
+    "Data Protection",
+    "Privacy",
+    "Security Requirements",
+    "Audit Requirements",
+    "Record Keeping",
+    "Notification Requirements",
 ]
 
 TOP_LEVEL_MARKERS = {

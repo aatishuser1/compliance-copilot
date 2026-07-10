@@ -8,6 +8,10 @@ import {
   type ChatResponse,
   type ComplianceSummary,
   type DocumentInfo,
+  type Priority,
+  type RiskLevel,
+  type Severity,
+  type SourceReference,
 } from './api'
 
 // Icons as simple SVG components
@@ -194,7 +198,7 @@ function App() {
     try {
       const result = await getSummary(selectedId)
       setSummary(result.summary)
-      setSuccess('Compliance summary generated.')
+      setSuccess('Compliance intelligence generated.')
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Summary request failed.'))
     } finally {
@@ -239,7 +243,7 @@ function App() {
             <div>
               <h1 className="text-xl font-semibold text-slate-900">Compliance Copilot</h1>
               <p className="text-sm text-slate-500">
-                Upload documents, ask questions, and review compliance summaries.
+                Upload documents, ask questions, and generate compliance intelligence.
               </p>
             </div>
           </div>
@@ -589,9 +593,9 @@ function App() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Compliance Summary</h2>
+                <h2 className="text-lg font-semibold text-slate-900">Compliance Intelligence</h2>
                 <p className="text-sm text-slate-500">
-                  Generate obligations, risks, gaps, and recommendations.
+                  Obligations, risks, penalties, and recommended actions — grounded in your document.
                 </p>
               </div>
               <button
@@ -599,9 +603,9 @@ function App() {
                 onClick={handleSummary}
                 disabled={!selectedId || isBusy}
                 className="flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
-                aria-label="Generate compliance summary"
+                aria-label="Generate compliance intelligence"
               >
-                {loading === 'summary' ? <Spinner /> : 'Generate Summary'}
+                {loading === 'summary' ? <Spinner /> : 'Analyze Document'}
               </button>
             </div>
 
@@ -609,37 +613,52 @@ function App() {
               <div className="mt-4 flex flex-col items-center py-8 text-center">
                 <OverviewIcon />
                 <p className="mt-3 text-sm text-slate-500">
-                  Generate a compliance summary.
+                  Run compliance analysis to extract obligations, risks, and penalties.
                 </p>
               </div>
             ) : (
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-                <SummaryCard
-                  title="Overview"
-                  icon={<OverviewIcon />}
-                  items={[summary.overview]}
-                  paragraph
-                />
-                <SummaryCard
-                  title="Key Obligations"
-                  icon={<DocumentIcon />}
-                  items={summary.key_obligations}
-                />
-                <SummaryCard
-                  title="Risks"
-                  icon={<RiskIcon />}
-                  items={summary.risks}
-                />
-                <SummaryCard
-                  title="Missing Information"
-                  icon={<WarningIcon />}
-                  items={summary.missing_information}
-                />
-                <SummaryCard
-                  title="Recommendations"
-                  icon={<LightbulbIcon />}
-                  items={summary.recommendations}
-                />
+              <div className="mt-4 space-y-4">
+                <ComplianceOverviewCard summary={summary} />
+                {summary.obligations.length > 0 && (
+                  <ComplianceSection title="Obligations" icon={<DocumentIcon />} count={summary.obligations.length}>
+                    {summary.obligations.map((item) => (
+                      <ObligationCard key={item.id} obligation={item} />
+                    ))}
+                  </ComplianceSection>
+                )}
+                {summary.risks.length > 0 && (
+                  <ComplianceSection title="Risks" icon={<RiskIcon />} count={summary.risks.length}>
+                    {summary.risks.map((item) => (
+                      <RiskCard key={item.id} risk={item} />
+                    ))}
+                  </ComplianceSection>
+                )}
+                {summary.penalties.length > 0 && (
+                  <ComplianceSection title="Penalties" icon={<WarningIcon />} count={summary.penalties.length}>
+                    {summary.penalties.map((item) => (
+                      <PenaltyCard key={item.id} penalty={item} />
+                    ))}
+                  </ComplianceSection>
+                )}
+                {summary.recommended_actions.length > 0 && (
+                  <ComplianceSection title="Recommended Actions" icon={<LightbulbIcon />} count={summary.recommended_actions.length}>
+                    {summary.recommended_actions.map((item) => (
+                      <ActionCard key={item.id} action={item} />
+                    ))}
+                  </ComplianceSection>
+                )}
+                {summary.missing_information.length > 0 && (
+                  <ComplianceSection title="Missing Information" icon={<WarningIcon />} count={summary.missing_information.length}>
+                    <ul className="space-y-2">
+                      {summary.missing_information.map((item) => (
+                        <li key={item} className="flex gap-2 text-sm text-slate-600">
+                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+                          <span className="leading-relaxed">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </ComplianceSection>
+                )}
               </div>
             )}
           </div>
@@ -649,36 +668,206 @@ function App() {
   )
 }
 
-function SummaryCard({
+function ComplianceOverviewCard({ summary }: { summary: ComplianceSummary }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-slate-600"><OverviewIcon /></span>
+          <h3 className="font-semibold text-slate-900">Executive Overview</h3>
+        </div>
+        <RiskLevelBadge level={summary.risk_level} />
+      </div>
+      <p className="text-sm text-slate-600 leading-relaxed">{summary.overview}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {summary.document_type && (
+          <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+            {summary.document_type}
+          </span>
+        )}
+        {summary.regulatory_framework && (
+          <span className="inline-flex rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">
+            {summary.regulatory_framework}
+          </span>
+        )}
+      </div>
+      {summary.analysis_notes && (
+        <p className="mt-3 text-xs text-slate-500 italic border-t border-slate-200 pt-3">
+          {summary.analysis_notes}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function ComplianceSection({
   title,
   icon,
-  items,
-  paragraph = false,
+  count,
+  children,
 }: {
   title: string
   icon: React.ReactNode
-  items: string[]
-  paragraph?: boolean
+  count: number
+  children: React.ReactNode
 }) {
-  if (items.length === 0) return null
-
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-slate-600">{icon}</span>
         <h3 className="font-semibold text-slate-900">{title}</h3>
+        <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+          {count}
+        </span>
       </div>
-      {paragraph ? (
-        <p className="text-sm text-slate-600 leading-relaxed">{items[0]}</p>
-      ) : (
-        <ul className="space-y-2">
-          {items.map((item) => (
-            <li key={item} className="flex gap-2 text-sm text-slate-600">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
-              <span className="leading-relaxed">{item}</span>
-            </li>
-          ))}
-        </ul>
+      <div className="space-y-3">{children}</div>
+    </div>
+  )
+}
+
+function SourceBadges({ sources }: { sources: SourceReference[] }) {
+  if (sources.length === 0) return null
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {sources.map((source) => (
+        <span
+          key={`${source.page}-${source.chunk}`}
+          className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600"
+          title={source.excerpt ?? undefined}
+        >
+          <PageIcon />
+          p.{source.page}
+          {source.section && <span className="text-slate-400">· {source.section}</span>}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function RiskLevelBadge({ level }: { level: RiskLevel }) {
+  const styles: Record<RiskLevel, string> = {
+    critical: 'bg-red-100 text-red-800',
+    high: 'bg-orange-100 text-orange-800',
+    medium: 'bg-amber-100 text-amber-800',
+    low: 'bg-emerald-100 text-emerald-800',
+  }
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase ${styles[level]}`}>
+      {level} risk
+    </span>
+  )
+}
+
+function PriorityBadge({ priority }: { priority: Priority }) {
+  const styles: Record<Priority, string> = {
+    critical: 'bg-red-100 text-red-700',
+    high: 'bg-orange-100 text-orange-700',
+    medium: 'bg-amber-100 text-amber-700',
+    low: 'bg-slate-100 text-slate-600',
+  }
+  return (
+    <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium capitalize ${styles[priority]}`}>
+      {priority}
+    </span>
+  )
+}
+
+function SeverityBadge({ severity }: { severity: Severity }) {
+  const styles: Record<Severity, string> = {
+    critical: 'bg-red-100 text-red-700',
+    high: 'bg-orange-100 text-orange-700',
+    medium: 'bg-amber-100 text-amber-700',
+    low: 'bg-slate-100 text-slate-600',
+  }
+  return (
+    <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium capitalize ${styles[severity]}`}>
+      {severity}
+    </span>
+  )
+}
+
+function ObligationCard({ obligation }: { obligation: import('./api').ComplianceObligation }) {
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <span className="text-xs font-mono text-slate-400">{obligation.id}</span>
+          <h4 className="font-medium text-slate-900">{obligation.title}</h4>
+        </div>
+        <PriorityBadge priority={obligation.priority} />
+      </div>
+      <p className="mt-1 text-sm text-slate-600 leading-relaxed">{obligation.description}</p>
+      <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
+        {obligation.category && <span>Category: {obligation.category}</span>}
+        {obligation.deadline && <span>Deadline: {obligation.deadline}</span>}
+      </div>
+      <SourceBadges sources={obligation.sources} />
+    </div>
+  )
+}
+
+function RiskCard({ risk }: { risk: import('./api').ComplianceRisk }) {
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <span className="text-xs font-mono text-slate-400">{risk.id}</span>
+          <h4 className="font-medium text-slate-900">{risk.title}</h4>
+        </div>
+        <SeverityBadge severity={risk.severity} />
+      </div>
+      <p className="mt-1 text-sm text-slate-600 leading-relaxed">{risk.description}</p>
+      {risk.likelihood && (
+        <p className="mt-1 text-xs text-slate-500">Likelihood: {risk.likelihood}</p>
+      )}
+      {risk.related_obligation_ids.length > 0 && (
+        <p className="mt-1 text-xs text-slate-500">
+          Related: {risk.related_obligation_ids.join(', ')}
+        </p>
+      )}
+      <SourceBadges sources={risk.sources} />
+    </div>
+  )
+}
+
+function PenaltyCard({ penalty }: { penalty: import('./api').CompliancePenalty }) {
+  return (
+    <div className="rounded-lg border border-red-100 bg-red-50/50 p-3">
+      <span className="text-xs font-mono text-slate-400">{penalty.id}</span>
+      <p className="mt-0.5 text-sm text-slate-700 leading-relaxed">{penalty.description}</p>
+      {penalty.amount_or_range && (
+        <p className="mt-2 text-sm font-semibold text-red-800">{penalty.amount_or_range}</p>
+      )}
+      <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
+        {penalty.penalty_type && <span>Type: {penalty.penalty_type}</span>}
+        {penalty.trigger && <span>Trigger: {penalty.trigger}</span>}
+      </div>
+      {penalty.related_obligation_ids.length > 0 && (
+        <p className="mt-1 text-xs text-slate-500">
+          Related: {penalty.related_obligation_ids.join(', ')}
+        </p>
+      )}
+      <SourceBadges sources={penalty.sources} />
+    </div>
+  )
+}
+
+function ActionCard({ action }: { action: import('./api').RecommendedAction }) {
+  return (
+    <div className="rounded-lg border border-emerald-100 bg-emerald-50/50 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <span className="text-xs font-mono text-slate-400">{action.id}</span>
+          <h4 className="font-medium text-slate-900">{action.title}</h4>
+        </div>
+        <PriorityBadge priority={action.priority} />
+      </div>
+      <p className="mt-1 text-sm text-slate-600 leading-relaxed">{action.description}</p>
+      <p className="mt-1 text-xs text-slate-500 capitalize">Effort: {action.effort}</p>
+      {(action.related_risk_ids.length > 0 || action.related_obligation_ids.length > 0) && (
+        <p className="mt-1 text-xs text-slate-500">
+          Addresses: {[...action.related_obligation_ids, ...action.related_risk_ids].join(', ')}
+        </p>
       )}
     </div>
   )
